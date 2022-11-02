@@ -29,11 +29,13 @@ class CameraModel(Enum):
 
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
+    PINHOLE = "PINHOLE"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
+    "pinhole": CameraModel.PINHOLE
 }
 
 
@@ -424,11 +426,16 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
         The number of registered images.
     """
 
-    cameras = colmap_utils.read_cameras_binary(cameras_path)
+    # cameras = colmap_utils.read_cameras_binary(cameras_path)
+    cameras = colmap_utils.read_cameras_text(cameras_path[:-4] + ".txt")
     images = colmap_utils.read_images_binary(images_path)
 
     # Only supports one camera
-    camera_params = cameras[1].params
+
+    # camera_params = cameras[1].params
+    cam = cameras[list(cameras.keys())[0]]
+    fx, fy, cx, cy = cam.params
+    h, w = cam.height, cam.width
 
     frames = []
     for _, im_data in images.items():
@@ -450,13 +457,23 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
         }
         frames.append(frame)
 
+    # out = {
+    #     "fl_x": float(camera_params[0]),
+    #     "fl_y": float(camera_params[1]),
+    #     "cx": float(camera_params[2]),
+    #     "cy": float(camera_params[3]),
+    #     "w": cameras[1].width,
+    #     "h": cameras[1].height,
+    #     "camera_model": camera_model.value,
+    # }
+
     out = {
-        "fl_x": float(camera_params[0]),
-        "fl_y": float(camera_params[1]),
-        "cx": float(camera_params[2]),
-        "cy": float(camera_params[3]),
-        "w": cameras[1].width,
-        "h": cameras[1].height,
+        "fl_x": fx,
+        "fl_y": fy,
+        "cx": cx,
+        "cy": cy,
+        "w": w,
+        "h": h,
         "camera_model": camera_model.value,
     }
 
@@ -557,7 +574,7 @@ class ProcessImages:
     """Path the data, either a video file or a directory of images."""
     output_dir: Path
     """Path to the output directory."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "pinhole"] = "pinhole"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
